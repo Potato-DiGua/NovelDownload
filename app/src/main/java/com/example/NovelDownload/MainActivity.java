@@ -19,26 +19,77 @@ import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
     private Button downloadbtn;
     private Button autobtn;
-    private EditText urledit;
-    private EditText typeedit;
-    private EditText nameedit;
-    private Download download=new Download();
-    private Spinner spinner;
+    public EditText urledit;
+    public EditText typeedit;
+    public EditText nameedit;
+    private Download download=new Download(this);
+    public Spinner spinner;
     private String path;
-    private ProgressBar downloadBar;
-    private ProgressBar showBar;
-    public static Handler handler;
+    public ProgressBar downloadBar;
+    public ProgressBar showBar;
+    public final Handler handler=new MyHandler(this);
     public final static int DOWNLOAD_FINISH=22;
     public final static int WRITE_FINISH=33;
     public final static int CHAPTERLIST_START=44;
     public final static int CHAPTERLIST_FINISH=45;
     public final static int CHAPTERLIST_ERROR=46;
     public final static int GET_CHAPTER_ERROR=55;
+    private static class MyHandler extends Handler
+    {
+        private int progress=0;
+        private WeakReference<MainActivity> mActivity;
+        MainActivity mainActivity;
+        public MyHandler(MainActivity mainActivity) {
+            super();
+            mActivity = new WeakReference<>(mainActivity);
+            this.mainActivity=mActivity.get();
+        }
+        public void handleMessage(@NonNull Message msg) {
+            switch (msg.what)
+            {
+                case R.id.autobutton://自动填写完成
+                    mainActivity.setUIEnabled(true);
+                    mainActivity.typeedit.setText(mainActivity.download.contenttype);
+                    mainActivity.nameedit.setText(mainActivity.download.novelname);
+                    mainActivity.showBar.setVisibility(View.GONE);
+                    break;
+                case R.id.downloadbutton://设置进度条最大值
+                    mainActivity.downloadBar.setMax(mainActivity.download.chaptersize);
+                    break;
+                case R.id.downloadBar://调整进度
+                    mainActivity.downloadBar.setProgress(++progress);
+                    break;
+                case DOWNLOAD_FINISH:
+                    mainActivity.showMessage("下载完成,开始写入");
+                    break;
+                case WRITE_FINISH:
+                    mainActivity.showMessage("写入完成");
+                    mainActivity.downloadBar.setVisibility(View.GONE);
+                    mainActivity.setUIEnabled(true);
+                    break;
+                case CHAPTERLIST_START:
+                    mainActivity.showMessage("开始获取所有章节网址");
+                    break;
+                case CHAPTERLIST_FINISH:
+                    mainActivity.showMessage("获取所有章节网址结束");
+                    break;
+                case CHAPTERLIST_ERROR:
+                    mainActivity.showMessage("获取所有章节地址失败,请检查网址是否正确或者更换网站");
+                    mainActivity.setUIEnabled(true);
+                    break;
+                case GET_CHAPTER_ERROR:
+                    mainActivity.showMessage(msg.obj.toString());
+
+            }
+        }
+
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,48 +104,6 @@ public class MainActivity extends AppCompatActivity {
         autobtn=findViewById(R.id.autobutton);
         nameedit=findViewById(R.id.nameeditText);
         showBar=findViewById(R.id.progressBar);
-        handler=new Handler(){
-            private int progress=0;
-            @Override
-            public void handleMessage(@NonNull Message msg) {
-                super.handleMessage(msg);
-                switch (msg.what)
-                {
-                    case R.id.autobutton://自动填写完成
-                        setUIEnabled(true);
-                        typeedit.setText(download.contenttype);
-                        nameedit.setText(download.novelname);
-                        showBar.setVisibility(View.GONE);
-                        break;
-                    case R.id.downloadbutton://设置进度条最大值
-                        downloadBar.setMax(download.chaptersize);
-                        break;
-                    case R.id.downloadBar://调整进度
-                        downloadBar.setProgress(++progress);
-                        break;
-                    case DOWNLOAD_FINISH:
-                        showMessage("下载完成,开始写入");
-                        break;
-                    case WRITE_FINISH:
-                        showMessage("写入完成");
-                        downloadBar.setVisibility(View.GONE);
-                        setUIEnabled(true);
-                        break;
-                    case CHAPTERLIST_START:
-                        showMessage("开始获取所有章节网址");
-                        break;
-                    case CHAPTERLIST_FINISH:
-                        showMessage("获取所有章节网址结束");
-                        break;
-                    case CHAPTERLIST_ERROR:
-                        showMessage("获取所有章节地址失败,请检查网址是否正确或者更换网站");
-                        break;
-                    case GET_CHAPTER_ERROR:
-                        showMessage(msg.obj.toString());
-
-                }
-            }
-        };
         final ArrayList<Integer> numlist=new ArrayList<>();
         for(int i=1;i<=16;i++)
         {
@@ -111,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
                 setUIEnabled(false);
                 final String url=urledit.getText().toString();
                 Log.i("auto","click"+url);
-                if(url!=null&&!url.isEmpty())
+                if(!url.isEmpty())
                 {
                     new Thread(new Runnable() {
                         final String strurl=url;
@@ -135,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
                 final int threadnum=numlist.get(spinner.getSelectedItemPosition());
                 final String contenttype=typeedit.getText().toString();
                 final String name=nameedit.getText().toString();
-                if(url!=null&&contenttype!=null&&name!=null&&!url.isEmpty()&&!contenttype.isEmpty()&&!name.isEmpty())
+                if(!url.isEmpty()&&!contenttype.isEmpty()&&!name.isEmpty())
                 {
                     downloadBar.setVisibility(View.VISIBLE);
                     new Thread(new Runnable() {
@@ -153,7 +162,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    private void setUIEnabled(Boolean enabled)
+    public void setUIEnabled(Boolean enabled)
     {
         urledit.setEnabled(enabled);
         spinner.setEnabled(enabled);

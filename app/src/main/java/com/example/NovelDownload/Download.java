@@ -1,7 +1,5 @@
 package com.example.NovelDownload;
 
-import android.os.Message;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -27,13 +25,18 @@ public class Download {
     public String title;
     public List<String> chapterTitle=new ArrayList<>();
     public List<String> chapterurl=new ArrayList<>();
-    public static String user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+    private static String user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
     public String contenttype;
     public ExecutorService fixedThreadPool;
     public String[] chapterList;
     public String novelname;
     public int chaptersize;
+    private MainActivity mainActivity;
+    public Download(MainActivity mainActivity)
+    {
+        this.mainActivity=mainActivity;
+    }
     public void callDownload(int threadnum,String contenttype,String path,String url)
     {
         fixedThreadPool=Executors.newFixedThreadPool(threadnum);
@@ -170,9 +173,9 @@ public class Download {
     }
 
     public boolean  resultGetURL(String strurl) {
-        MainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_START);
+        mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_START);
         String result = downLoad(strurl);
-        if(result.isEmpty()||result==null)
+        if(result.isEmpty())
             return false;
         try {
             title= Jsoup.parse(result).title();
@@ -200,7 +203,7 @@ public class Download {
 
             //resulthandle = new String(Jsoup.clean(result, );
 
-            MainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_FINISH);
+            mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_FINISH);
             return true;
 
         } catch (Exception e) {
@@ -215,13 +218,13 @@ public class Download {
     {
         if(chapterurl.size()==0||chapterTitle.size()==0||chapterTitle.size()!=chapterurl.size())
         {
-            MainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_ERROR);
+            mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_ERROR);
             return "";
         }
 
         int size=chapterTitle.size();
         chaptersize=size;
-        MainActivity.handler.sendEmptyMessage(R.id.downloadbutton);
+        mainActivity.handler.sendEmptyMessage(R.id.downloadbutton);
         chapterList=new String[size];
         StringBuilder stringBuilder=new StringBuilder();
         for(int i=0;i<size;i++)
@@ -243,7 +246,7 @@ public class Download {
                 {
                     stringBuilder.append(str);
                 }
-                MainActivity.handler.sendEmptyMessage(MainActivity.DOWNLOAD_FINISH);
+                mainActivity.handler.sendEmptyMessage(MainActivity.DOWNLOAD_FINISH);
                 return stringBuilder.toString();
             }
         }
@@ -267,12 +270,12 @@ public class Download {
             chapterList[i]=stringBuilder.toString();
             if(chapterList[i]==null||chapterList[i].isEmpty())
             {
-                MainActivity.handler.sendMessage(MainActivity.handler.obtainMessage(
+                mainActivity.handler.sendMessage(mainActivity.handler.obtainMessage(
                         MainActivity.GET_CHAPTER_ERROR,(chapterTitle.get(i)+"下载失败")));
                 return false;
             }
             //System.out.println(i+"章下载完成");
-            MainActivity.handler.sendEmptyMessage(R.id.downloadBar);
+            mainActivity.handler.sendEmptyMessage(R.id.downloadBar);
             return true;
         }
     }
@@ -290,7 +293,7 @@ public class Download {
             bw.write(content,0,content.length());
             bw.flush();
             bw.close();
-            MainActivity.handler.sendEmptyMessage(MainActivity.WRITE_FINISH);
+            mainActivity.handler.sendEmptyMessage(MainActivity.WRITE_FINISH);
             //System.out.println();
         } catch (IOException e) {
             e.printStackTrace();
