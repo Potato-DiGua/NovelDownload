@@ -2,4 +2,4 @@
 Android小说下载器
 
 Download:
-<a href="/app-release.apk" download="noveldownload">apk</a>
+<a id="raw-url" class="btn btn-sm BtnGroup-item" href="/hehe85643402/NovelDownload/raw/dev/app-release.apk">Download</a>
