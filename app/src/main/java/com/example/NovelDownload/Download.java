@@ -297,12 +297,4 @@ public class Download {
         }
 
     }
-
-    /*public static void main(String[] args) {
-        //String url= JOptionPane.showInputDialog("输入网址");
-        Download d=new Download();
-        d.contenttype=d.getEncodeType("http://www.xbiquge.la/10/10489/");
-        d.resultGetURL("http://www.xbiquge.la/10/10489/");
-        d.save(d.getNovelContent(),"/home/zzl/test/test.txt");
-    }*/
 }
