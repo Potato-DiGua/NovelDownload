@@ -2,6 +2,9 @@ package com.example.NovelDownload;
 
 import org.junit.Test;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static org.junit.Assert.*;
 
 /**
@@ -12,6 +15,14 @@ import static org.junit.Assert.*;
 public class ExampleUnitTest {
     @Test
     public void addition_isCorrect() {
-        assertEquals(4, 2 + 2);
+        String url="https://www.booktxt.net/5_5907/";
+
+        String regex = "(https|http)://(([a-z0-9]+\\.)|(www\\.))"
+                + "[a-zA-Z0-9]+\\.[a-zA-Z0-9]+"
+                +"(/[a-zA-Z0-9\\-_]+)+/?";//设置正则表达式
+        Pattern pattern = Pattern.compile(regex);
+        Matcher m=pattern.matcher(url);
+        if(m.find())
+            System.out.println(m.group(0));
     }
 }

@@ -1,5 +1,8 @@
 package com.example.NovelDownload;
 
+import android.text.TextUtils;
+import android.util.Log;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -23,122 +26,126 @@ import java.util.regex.Pattern;
 
 public class Download {
     public String title;
-    public List<String> chapterTitle=new ArrayList<>();
-    public List<String> chapterurl=new ArrayList<>();
-    private static String user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+    public List<String> chapterTitleList =new ArrayList<>();
+    public List<String> chapterUrlList =new ArrayList<>();
+    private static String sUserAgent ="Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36";
-    public String contenttype;
+    public String contentType;
     public ExecutorService fixedThreadPool;
-    public String[] chapterList;
-    public String novelname;
-    public int chaptersize;
+    public String[] chapterArray;
+    public String novelName;
+    public int chapterSize;
     private MainActivity mainActivity;
+
     public Download(MainActivity mainActivity)
     {
         this.mainActivity=mainActivity;
     }
-    public void callDownload(int threadnum,String contenttype,String path,String url)
+
+    public void callDownload(int threadNum,String contentType,String path,String url)
     {
-        fixedThreadPool=Executors.newFixedThreadPool(threadnum);
-        this.contenttype=contenttype;
+        fixedThreadPool=Executors.newFixedThreadPool(threadNum);
+        this.contentType=contentType;
+        Log.d("type",contentType);
         resultGetURL(url);
         save(getNovelContent(),path);
     }
-    private String downLoad(String strurl) {
+    private String downLoad(String strUrl) {
 
         String result = "";
         BufferedReader rd = null;
-        // System.setProperties("sun.net.client.defaultConnectTimeout","5000");
         try {
-            //System.out.println(contenttype);
-            //hConnect.disconnect();
-            //System.exit(0);
-            URL url = new URL(strurl);
+            URL url = new URL(strUrl);
             HttpURLConnection hConnect = (HttpURLConnection) url.openConnection();
             //定义请求头
-            hConnect.addRequestProperty("User-Agent", user_agent);
+            hConnect.addRequestProperty("User-Agent", sUserAgent);
             hConnect.addRequestProperty("Connection" , "keep-alive");
-            int responsecode = hConnect.getResponseCode();// 获取响应码
-            if (responsecode != 200)// 网站无响应
-                return "";
-            rd = new BufferedReader(new InputStreamReader(hConnect.getInputStream(),contenttype));
+            hConnect.setConnectTimeout(5000);
+            hConnect.setReadTimeout(5000);
+            hConnect.setDefaultUseCaches(false);
+            hConnect.connect();
 
-            String r;
-            while ((r = rd.readLine()) != null) {
-                result += r;
+            int response_code = hConnect.getResponseCode();// 获取响应码
+            if (response_code == 200)
+            {
+                rd = new BufferedReader(new InputStreamReader(hConnect.getInputStream(),contentType));
+                String r;
+                while ((r = rd.readLine()) != null) {
+                    result += r;
+                }
             }
-            //System.out.println(result);
+            else
+                result="";
+            hConnect.disconnect();
         } catch (Exception e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         } finally {
-
             try {
                 if (rd != null)
                     rd.close();
             } catch (IOException e) {
-                // TODO 自动生成的 catch 块
                 e.printStackTrace();
             }
         }
         return result;
     }
-    public void autoset(String url)
+    public void autoSet(String url)
     {
-        contenttype=getEncodeType(url);
-        novelname=getTitle(url);
+        contentType=getEncodeType(url);
+        novelName =getTitle(url);
+        chapterTitleList.clear();
+        chapterUrlList.clear();
     }
     public String getTitle(String url)
     {
         String result=downLoad(url);
         if(!result.isEmpty())
         {
-            String name=Jsoup.parse(result).title();
-            name=name.substring(0,name.indexOf("_"));
+            String name=Jsoup.parse(result).select("div#info").select("h1").first().text();
             return name;
         }
         else
             return "";
 
     }
-    public String getEncodeType(String strurl)// 获取网站编码格式
+    public String getEncodeType(String strUrl)// 获取网站编码格式
     {
-        URL url;
+        URL url=null;
         HttpURLConnection hConnect=null;
         try {
-            url = new URL(strurl);
+            url = new URL(strUrl);
             hConnect = (HttpURLConnection) url.openConnection();
-            int responsecode = hConnect.getResponseCode();// 获取响应码
-            if (responsecode != 200)// 网站无响应
+            hConnect.setConnectTimeout(5000);
+            hConnect.setReadTimeout(5000);
+            int responseCode = hConnect.getResponseCode();// 获取响应码
+            if (responseCode != 200)// 网站无响应
                 return "";
         } catch (IOException e1) {
             // TODO 自动生成的 catch 块
             e1.printStackTrace();
         }
-        String contenttype =hConnect.getContentType();
+        String contenttype=null;
+        if(hConnect!=null)
+            contenttype =hConnect.getContentType();
         if (contenttype!=null&&!contenttype.isEmpty() && contenttype.contains("charset"))// 从响应头获取编码格式，但是会出现编码格式的情况
         {
-			/*String[] content = contenttype.split(";");
-			for (String con : content) {
-				if (con.contains("charset")) {
-					return con.split("=")[1];
-				}
-			}*/
             return contenttype.substring(contenttype.indexOf("charset=")+8);
 
         } else { // 从网页源代码中获取编码格式
             BufferedReader rd = null;
             try {
-
+                hConnect.connect();
                 rd= new BufferedReader(new InputStreamReader(hConnect.getInputStream()));
 
                 String r;
-                String result = "";
+
+                StringBuilder stringBuilder=new StringBuilder();
                 while ((r = rd.readLine()) != null) {
-                    result += r;
+                    stringBuilder.append(r);
                 }
+                hConnect.disconnect();
                 //System.out.println(result);
-                Document doc = Jsoup.parse(result);
+                Document doc = Jsoup.parse(stringBuilder.toString());
                 String s;
                 if(doc.hasAttr("charset"))
                     s= String.valueOf(doc.select("meta[charset]").first().attr("charset"));
@@ -151,39 +158,45 @@ public class Download {
                 }
                 else {
                     Element e=doc.select("meta[http-equiv=\"content-type\"]").first();
+                    if(e==null)
+                    {
+                        e=doc.select("meta[http-equiv=\"Content-Type\"]").first();
+                    }
+
                     //System.out.println(e.attr("content"));
                     //System.out.println(e.attr("content").indexOf("charset="));
                     //System.out.println(e.attr("content").substring(e.attr("content").indexOf("charset=")+8));
                     return e.attr("content").substring(e.attr("content").indexOf("charset=")+8);
                 }
+
             } catch (Exception e) {
                 // TODO 自动生成的 catch 块
                 e.printStackTrace();
             }finally {
                 try {
-                    rd.close();
+                    if(rd!=null)
+                        rd.close();
                 } catch (IOException e) {
                     // TODO 自动生成的 catch 块
                     e.printStackTrace();
                 }
             }
         }
-        return "UTF-8";//获取编码格式失败，默认使用utf-8编码
+        return "";//获取编码格式失败
 
     }
 
-    public boolean  resultGetURL(String strurl) {
-        mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_START);
-        String result = downLoad(strurl);
+    public boolean  resultGetURL(String strUrl) {
+        mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTER_LIST_START);
+        String result = downLoad(strUrl);
         if(result.isEmpty())
             return false;
         try {
             title= Jsoup.parse(result).title();
-            String baseUrl = strurl.substring(0,strurl.indexOf("/",strurl.indexOf(".")));
-            Document document=Jsoup.parse(result,baseUrl);
-            Elements urllist=document.select("a[href]");
-            Pattern r = Pattern.compile("第?[0-9一二三四五六七八九十百千万]+章? ");
-            for(Element e:urllist)
+            Document document=Jsoup.parse(result,strUrl.substring(0,strUrl.indexOf("/",8)));
+            Elements urlList=document.select("div#list").select("a[href]");
+            Pattern r = Pattern.compile("第?[0-9一二三四五六七八九十百千万]+章?");
+            for(Element e:urlList)
             {
                 String name=e.text();
                 Matcher m=r.matcher(name);
@@ -191,19 +204,18 @@ public class Download {
                 {
                     if(!name.contains("章")&&!name.contains("第"))
                     {
-                        name=name.replaceAll("[\\d一二三四五六七八九十百千万]+","第$0章");
+                        name=name.replaceAll("[0-9一二三四五六七八九十百千万]+","第$0章");
                     }
-                    chapterTitle.add(name);
-                    chapterurl.add(e.absUrl("href"));
+                    //Log.d("name",name);
+                    chapterTitleList.add(name);
+                    chapterUrlList.add(e.absUrl("href"));
+                    //Log.d("urllist",e.absUrl("href"));
                 }
 
                 //System.out.print(e.select("a").first().absUrl("href"));
                 //System.out.println(e.text());
             }
-
-            //resulthandle = new String(Jsoup.clean(result, );
-
-            mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_FINISH);
+            mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTER_LIST_FINISH);
             return true;
 
         } catch (Exception e) {
@@ -216,16 +228,16 @@ public class Download {
     }
     public String getNovelContent()
     {
-        if(chapterurl.size()==0||chapterTitle.size()==0||chapterTitle.size()!=chapterurl.size())
+        if(chapterUrlList.size()==0|| chapterTitleList.size()==0|| chapterTitleList.size()!= chapterUrlList.size())
         {
-            mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTERLIST_ERROR);
+            mainActivity.handler.sendEmptyMessage(MainActivity.CHAPTER_LIST_ERROR);
             return "";
         }
 
-        int size=chapterTitle.size();
-        chaptersize=size;
-        mainActivity.handler.sendEmptyMessage(R.id.downloadbutton);
-        chapterList=new String[size];
+        int size= chapterTitleList.size();
+        chapterSize =size;
+        mainActivity.handler.sendEmptyMessage(R.id.btn_download);
+        chapterArray =new String[size];
         StringBuilder stringBuilder=new StringBuilder();
         for(int i=0;i<size;i++)
         {
@@ -233,7 +245,15 @@ public class Download {
             fixedThreadPool.execute(new Runnable() {
                 @Override
                 public void run() {
-                    getChaprerContent(index);
+                    if(getChapterContent(index))
+                    {
+                        mainActivity.handler.sendEmptyMessage(R.id.downloadBar);
+                    }
+                    else
+                    {
+                        mainActivity.handler.sendMessage(mainActivity.handler.obtainMessage(
+                                MainActivity.GET_CHAPTER_ERROR,(chapterTitleList.get(index)+"下载失败")));
+                    }
                 }
             });
         }
@@ -242,7 +262,7 @@ public class Download {
         {
             if(fixedThreadPool.isTerminated())
             {
-                for(String str:chapterList)
+                for(String str: chapterArray)
                 {
                     stringBuilder.append(str);
                 }
@@ -252,31 +272,27 @@ public class Download {
         }
 
     }
-    public boolean getChaprerContent(int i)
+    public boolean getChapterContent(int i)
     {
         StringBuilder stringBuilder=new StringBuilder();
-        String result=downLoad(chapterurl.get(i));
-        result=result.replaceAll("<br />","###");
-        result=result.replaceAll("&nbsp;","nbsp");
-        if(result!=null&&!result.isEmpty());
+        String result=downLoad(chapterUrlList.get(i));
+        if(!result.isEmpty());
         {
+            result=result.replaceAll("<br />","###");
+            result=result.replaceAll("&nbsp;","nbsp");
             Element e=Jsoup.parse(result).body().select("div#content").first();
+            if(e==null)
+                return false;
             String text=e.ownText().replaceAll("######","\n");
-            text=text.replaceAll("####","\n");
+            if(TextUtils.isEmpty(text))
+                return false;
+            text=text.replaceAll("###","\n");
             text=text.replaceAll("nbsp"," ")+"\n";
-            stringBuilder.append(chapterTitle.get(i));
+            stringBuilder.append(chapterTitleList.get(i));
             stringBuilder.append("\n");
             stringBuilder.append(text);
-            chapterList[i]=stringBuilder.toString();
-            if(chapterList[i]==null||chapterList[i].isEmpty())
-            {
-                mainActivity.handler.sendMessage(mainActivity.handler.obtainMessage(
-                        MainActivity.GET_CHAPTER_ERROR,(chapterTitle.get(i)+"下载失败")));
-                return false;
-            }
-            //System.out.println(i+"章下载完成");
-            mainActivity.handler.sendEmptyMessage(R.id.downloadBar);
-            return true;
+            chapterArray[i]=stringBuilder.toString();
+            return !TextUtils.isEmpty(chapterArray[i]);
         }
     }
     public void save(String content,String path)
@@ -287,7 +303,8 @@ public class Download {
             File f=new File(path);
             if(!f.getParentFile().exists())
             {
-                f.getParentFile().mkdirs();
+                if(f.getParentFile().mkdirs())
+                    return;
             }
             BufferedWriter bw=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(f),"utf-8"));
             bw.write(content,0,content.length());
